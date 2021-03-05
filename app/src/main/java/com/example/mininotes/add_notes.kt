@@ -3,10 +3,8 @@ package com.example.mininotes
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.widget.Toast
 import com.example.mininotes.Model.Notes
 import io.realm.Realm
-import io.realm.kotlin.where
 import kotlinx.android.synthetic.main.activity_add_notes.*
 
 class add_notes : AppCompatActivity() {
@@ -14,40 +12,58 @@ class add_notes : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_notes)
-
-        realm = Realm.getDefaultInstance()
-        btn_add.setOnClickListener {
-
-            addNotesToDB()
+        setupRealm()
+        addToDB()
+        getDataIntent()
+        UpdateData()
+        DeleteData()
         }
-    }
 
-    private fun addNotesToDB() {
-        try {
-            realm.beginTransaction()
-            val currentIdNumber: Number? = realm.where(Notes::class.java).max("id")
-            val nextID : Int
-
-            nextID = if(currentIdNumber == null){
-                1
-            }else{
-                currentIdNumber.toInt()+1
+       private fun addToDB(){
+            btn_add.setOnClickListener {
+                realm.beginTransaction()
+                val currentId  = realm.where(Notes::class.java).max("id")
+                val nextId = if (currentId == null) 1 else currentId.toInt()+1
+                val notes = realm.createObject(Notes::class.java)
+                notes.setId(nextId)
+                notes.setTitle(et_title.text.toString())
+                notes.setDescription(et_description.text.toString())
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+                realm.commitTransaction()
             }
-
-            val notes = Notes()
-            notes.setTitle(et_title.text.toString())
-            notes.setDescription(et_description.text.toString())
-            notes.setId(nextID)
-
-            //copy and commit
-            realm.copyToRealmOrUpdate(notes)
-            realm.commitTransaction()
-            Toast.makeText(this, "Notes Added", Toast.LENGTH_SHORT).show()
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-
-        } catch (e:Exception){
-            Toast.makeText(this, "Failed $e", Toast.LENGTH_SHORT).show()
         }
+
+        private fun UpdateData(){
+            btn_update.setOnClickListener {
+                realm.beginTransaction()
+                realm.where(Notes::class.java).equalTo("id", intent.getIntExtra("id", 1) ).findFirst().let {
+                    it!!.setTitle(et_title.text.toString())
+                    it!!.setDescription(et_description.text.toString())
+                }
+                realm.commitTransaction()
+                startActivity(Intent(this, MainActivity::class.java))
+            }
+        }
+
+        private fun DeleteData(){
+            btn_delete.setOnClickListener {
+                realm.beginTransaction()
+                realm.where(Notes::class.java).equalTo("id", intent.getIntExtra("id", 1)).findFirst().let {
+                    it!!.deleteFromRealm()
+                }
+                realm.commitTransaction()
+                startActivity(Intent(this, MainActivity::class.java))
+            }
+        }
+        private fun setupRealm(){
+            realm = Realm.getDefaultInstance()
+        }
+
+        private fun getDataIntent(){
+            et_title.setText(intent.getStringExtra("title"))
+            et_description.setText(intent.getStringExtra("desc"))
+        }
+
     }
-}
+
